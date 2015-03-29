@@ -1,0 +1,16 @@
+*~
+obj/
+bin/
+.gdb.in
+.qemu.out
+cscope.*
+ncscope.*
+tags
+*swp
+.cproject
+.project
+*.bak
+*.org
+.codelite
+*.project
+*.workspace
