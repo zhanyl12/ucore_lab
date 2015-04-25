@@ -95,13 +95,16 @@ default_alloc_pages(size_t n) {
             break;
         }
     }
-    if (page != NULL) {
-        list_del(&(page->page_link));
+    if (page != NULL)
+    {
+    list_entry_t* previous= list_prev(le);
         if (page->property > n) {
             struct Page *p = page + n;
+        SetPageProperty(p);
             p->property = page->property - n;
-            list_add(&free_list, &(p->page_link));
-    }
+            list_add(previous, &(p->page_link));
+        }
+    list_del(&(page->page_link));
         nr_free -= n;
         ClearPageProperty(page);
     }
@@ -119,6 +122,7 @@ default_free_pages(struct Page *base, size_t n) {
     }
     base->property = n;
     SetPageProperty(base);
+    nr_free += n;
     list_entry_t *le = list_next(&free_list);
     while (le != &free_list) {
         p = le2page(le, page_link);
@@ -127,6 +131,7 @@ default_free_pages(struct Page *base, size_t n) {
             base->property += p->property;
             ClearPageProperty(p);
             list_del(&(p->page_link));
+        break;
         }
         else if (p + p->property == base) {
             p->property += base->property;
@@ -134,9 +139,13 @@ default_free_pages(struct Page *base, size_t n) {
             base = p;
             list_del(&(p->page_link));
         }
+    else if(p>base)
+    {
+        le=list_prev(le);
+        break;
     }
-    nr_free += n;
-    list_add(&free_list, &(base->page_link));
+    }
+    list_add_before(le, &(base->page_link));
 }
 
 static size_t
@@ -195,7 +204,7 @@ basic_check(void) {
     free_page(p2);
 }
 
-// LAB2: below code is used to check the first fit allocation algorithm (your EXERCISE 1) 
+// LAB2: below code is used to check the first fit allocation algorithm (your EXERCISE 1)
 // NOTICE: You SHOULD NOT CHANGE basic_check, default_check functions!
 static void
 default_check(void) {
@@ -269,4 +278,3 @@ const struct pmm_manager default_pmm_manager = {
     .nr_free_pages = default_nr_free_pages,
     .check = default_check,
 };
-
