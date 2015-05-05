@@ -170,7 +170,7 @@ alloc_pages(size_t n) {
          //cprintf("page %x, call swap_out in alloc_pages %d\n",page, n);
          swap_out(check_mm_struct, n, 0);
     }
-    //cprintf("n %d,get page %x, No %d in alloc_pages\n",n,page,(page-pages));
+    cprintf("n %d,get page %x, No %d in alloc_pages\n",n,page,(page-pages));
     return page;
 }
 
@@ -182,6 +182,7 @@ free_pages(struct Page *base, size_t n) {
     {
         pmm_manager->free_pages(base, n);
     }
+    cprintf("free base %x %d\n",base,n);
     local_intr_restore(intr_flag);
 }
 
