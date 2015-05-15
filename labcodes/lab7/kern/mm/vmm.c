@@ -9,9 +9,9 @@
 #include <swap.h>
 #include <kmalloc.h>
 
-/* 
+/*
   vmm design include two parts: mm_struct (mm) & vma_struct (vma)
-  mm is the memory manager for the set of continuous virtual memory  
+  mm is the memory manager for the set of continuous virtual memory
   area which have the same PDT. vma is a continuous virtual memory area.
   There a linear link list for vma & a redblack link list for vma in mm.
 ---------------
@@ -52,10 +52,10 @@ mm_create(void) {
 
         if (swap_init_ok) swap_init_mm(mm);
         else mm->sm_priv = NULL;
-        
+
         set_mm_count(mm, 0);
         sem_init(&(mm->mm_sem), 1);
-    }    
+    }
     return mm;
 }
 
@@ -150,7 +150,7 @@ mm_destroy(struct mm_struct *mm) {
     list_entry_t *list = &(mm->mmap_list), *le;
     while ((le = list_next(list)) != list) {
         list_del(le);
-        kfree(le2vma(le, list_link));  //kfree vma        
+        kfree(le2vma(le, list_link));  //kfree vma
     }
     kfree(mm); //kfree mm
     mm=NULL;
@@ -253,7 +253,7 @@ vmm_init(void) {
 static void
 check_vmm(void) {
     size_t nr_free_pages_store = nr_free_pages();
-    
+
     check_vma_struct();
     check_pgfault();
 
@@ -310,7 +310,7 @@ check_vma_struct(void) {
     for (i =4; i>=0; i--) {
         struct vma_struct *vma_below_5= find_vma(mm,i);
         if (vma_below_5 != NULL ) {
-           cprintf("vma_below_5: i %x, start %x, end %x\n",i, vma_below_5->vm_start, vma_below_5->vm_end); 
+           cprintf("vma_below_5: i %x, start %x, end %x\n",i, vma_below_5->vm_start, vma_below_5->vm_end);
         }
         assert(vma_below_5 == NULL);
     }
@@ -451,15 +451,33 @@ do_pgfault(struct mm_struct *mm, uint32_t error_code, uintptr_t addr) {
     *   mm->pgdir : the PDT of these vma
     *
     */
-#if 0
-    /*LAB3 EXERCISE 1: YOUR CODE*/
-    ptep = ???              //(1) try to find a pte, if pte's PT(Page Table) isn't existed, then create a PT.
+    /*LAB3 EXERCISE 1: 2012011388
+    * Maybe you want help comment, BELOW comments can help you finish the code
+    *
+    * Some Useful MACROs and DEFINEs, you can use them in below implementation.
+    * MACROs or Functions:
+    *   get_pte : get an pte and return the kernel virtual address of this pte for la
+    *             if the PT contians this pte didn't exist, alloc a page for PT (notice the 3th parameter '1')
+    *   pgdir_alloc_page : call alloc_page & page_insert functions to allocate a page size memory & setup
+    *             an addr map pa<--->la with linear address la and the PDT pgdir
+    * DEFINES:
+    *   VM_WRITE  : If vma->vm_flags & VM_WRITE == 1/0, then the vma is writable/non writable
+    *   PTE_W           0x002                   // page table/directory entry flags bit : Writeable
+    *   PTE_U           0x004                   // page table/directory entry flags bit : User can access
+    * VARIABLES:
+    *   mm->pgdir : the PDT of these vma
+    *
+    */
+    /*LAB3 EXERCISE 1:2012011388*/
+    ptep = get_pte(mm->pgdir, addr, 1);              //(1) try to find a pte, if pte's PT(Page Table) isn't existed, then create a PT.
     if (*ptep == 0) {
+        struct Page* p = pgdir_alloc_page(mm->pgdir, addr, perm);
+        if (p == NULL)
+            goto failed;
                             //(2) if the phy addr isn't exist, then alloc a page & map the phy addr with logical addr
-
     }
     else {
-    /*LAB3 EXERCISE 2: YOUR CODE
+    /*LAB3 EXERCISE 2: 2012011388
     * Now we think this pte is a  swap entry, we should load data from disk to a page with phy addr,
     * and map the phy addr with logical addr, trigger swap manager to record the access situation of this page.
     *
@@ -472,27 +490,30 @@ do_pgfault(struct mm_struct *mm, uint32_t error_code, uintptr_t addr) {
     */
     /*
      * LAB5 CHALLENGE ( the implmentation Copy on Write)
-		There are 2 situlations when code comes here.
-		  1) *ptep & PTE_P == 1, it means one process try to write a readonly page. 
-		     If the vma includes this addr is writable, then we can set the page writable by rewrite the *ptep.
-		     This method could be used to implement the Copy on Write (COW) thchnology(a fast fork process method).
-		  2) *ptep & PTE_P == 0 & but *ptep!=0, it means this pte is a  swap entry.
-		     We should add the LAB3's results here.
+        There are 2 situlations when code comes here.
+          1) *ptep & PTE_P == 1, it means one process try to write a readonly page.
+             If the vma includes this addr is writable, then we can set the page writable by rewrite the *ptep.
+             This method could be used to implement the Copy on Write (COW) thchnology(a fast fork process method).
+          2) *ptep & PTE_P == 0 & but *ptep!=0, it means this pte is a  swap entry.
+             We should add the LAB3's results here.
      */
         if(swap_init_ok) {
             struct Page *page=NULL;
                                     //(1）According to the mm AND addr, try to load the content of right disk page
+            if (swap_in(mm, addr, &page) != 0)
+                goto failed;
+            page_insert(mm->pgdir, page, addr, perm | PTE_P);
+            *ptep = page2pa(page) | perm | PTE_P;
+            swap_map_swappable(mm, addr, page, 1);
                                     //    into the memory which page managed.
                                     //(2) According to the mm, addr AND page, setup the map of phy addr <---> logical addr
                                     //(3) make the page swappable.
-                                    //(4) [NOTICE]: you myabe need to update your lab3's implementation for LAB5's normal execution.
         }
         else {
             cprintf("no swap_init_ok but ptep is %x, failed\n",*ptep);
             goto failed;
         }
    }
-#endif
    ret = 0;
 failed:
     return ret;

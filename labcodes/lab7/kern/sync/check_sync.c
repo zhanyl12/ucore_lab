@@ -125,6 +125,15 @@ void phi_take_forks_condvar(int i) {
      // I am hungry
      // try to get fork
 //--------leave routine in monitor--------------
+     state_condvar[i]=HUNGRY;
+      if ((state_condvar[LEFT]!=EATING)&&(state_condvar[RIGHT]!=EATING))
+      {
+         cprintf("phi_test_condvar: state_condvar[%d] will eating\n",i);
+          state_condvar[i]=EATING;
+      }
+      else{
+          cond_wait(&(mtp->cv[i]));
+      }
       if(mtp->next_count>0)
          up(&(mtp->next));
       else
@@ -139,6 +148,9 @@ void phi_put_forks_condvar(int i) {
      // I ate over
      // test left and right neighbors
 //--------leave routine in monitor--------------
+     state_condvar[i] = THINKING;
+     phi_test_condvar(LEFT);
+     phi_test_condvar(RIGHT);
      if(mtp->next_count>0)
         up(&(mtp->next));
      else
