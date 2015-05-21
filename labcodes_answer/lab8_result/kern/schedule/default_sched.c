@@ -8,7 +8,7 @@
 
 /* You should define the BigStride constant here*/
 /* LAB6: YOUR CODE */
-#define BIG_STRIDE    0x7FFFFFFF /* ??? */
+#define BIG_STRIDE    1024/* ??? */
 
 /* The compare function for two skew_heap_node_t's and the
  * corresponding procs*/
@@ -51,7 +51,7 @@ stride_init(struct run_queue *rq) {
  *
  * proc->time_slice denotes the time slices allocation for the
  * process, which should set to rq->max_time_slice.
- * 
+ *
  * hint: see proj13.1/libs/skew_heap.h for routines of the priority
  * queue structures.
  */
@@ -116,7 +116,7 @@ stride_pick_next(struct run_queue *rq) {
 
      if (le == &rq->run_list)
           return NULL;
-     
+
      struct proc_struct *p = le2proc(le, run_link);
      le = list_next(le);
      while (le != &rq->run_list)
